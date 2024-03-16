@@ -1,5 +1,5 @@
 .chatting_layout{
-  height: 90vh;
+  height: 100vh;
   /* width: 100%; */
   background-color: cadetblue;
   
@@ -10,6 +10,17 @@
   border-radius: 50%;
   width: 50px;
   height: 50px;
+}
+
+.account_pic{
+  border-radius: 50%;
+  width: 250px;
+  height: 250px;
+}
+
+.bluish-image {
+  cursor: pointer;
+  filter: hue-rotate(200deg); /* Adjust the degree value to control the bluish tint */
 }
 
 .option_btn{
@@ -23,11 +34,10 @@
   max-height: 40px;
 }
 
-.chatting_box1 {
-  height: 50px;
-  /* background-color: #e0e0e0; */
-  margin-bottom: 10px;
-}
+/* .lastchild-margin:last-child{
+  margin-bottom: 50px;
+} */
+
 .siz{
   width: 60%;
 }

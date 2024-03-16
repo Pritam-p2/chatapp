@@ -1,93 +1,96 @@
-import React from 'react'
 import Chatting from '../components/Chatting'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ask_email } from '../store/chatSlice';
-import { useDispatch } from 'react-redux';
-// import useWebSocket, { ReadyState } from "react-use-websocket"
 
-// import Box1 from '../components/Box1'
-// import Signup from '../components/Signup'
+import MyProfile from '../components/MyProfile';
+import Leftpart from '../components/Leftpart';
+import { get_user_pic } from '../store/userSlice';
+import axios from 'axios';
 
-const Home = () => {
+
+// import { get_user_email } from '../store/myChatsSlice';
+import { useSelector, useDispatch } from 'react-redux'
+import { save_details } from '../store/myDataSlice';
+
+
+
+const Home = (props) => {
     const dispatch = useDispatch()
     const [hasAccessToken, setHasAccessToken] = useState(false)
-
-    const users = [{ 'name': "Pritam Debnath", 'status': 'online', "user": "me", "image": 'https://images.unsplash.com/photo-1529665253569-6d01c0eaf7b6?q=80&w=1385&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-    { 'name': "Rajat Debnath", 'status': false, "user": "friend", "image": 'https://unsplash.com/photos/closeup-photography-of-woman-smiling-mEZ3PoFGs_k' }]
-
-    const admin = [{ 'name': 'Admin', 'image': 'https://images.freeimages.com/fic/images/icons/2526/bloggers/256/admin.png' }]
+    const [first,setFirst] = useState('')
+    const [last,setLast] = useState('')
+    const [about,setAbout] = useState('')
+    const profilePic = useSelector((state) => state.profilePic);
+    const [fmail,setFmail] = useState('')
     
-    // connect_to_admin = () => {
 
-    //         const WS_URL = "ws://127.0.0.1:800/newuser/"
-    //         const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
-    //             WS_URL,
-    //             {
-    //                 share: false,
-    //                 shouldReconnect: () => true,
-    //             },
-    //         )
+    const handle_setFmail=(mail)=>{
+        setFmail(mail)
+    }
 
-    //         // Run when the connection state (readyState) changes
-    //         useEffect(() => {
-    //             console.log("Connection state changed")
-    //             if (readyState === ReadyState.OPEN) {
-    //                 sendJsonMessage({
-    //                     event: "subscribe",
-    //                     data: {
-    //                         channel: "general-chatroom",
-    //                     },
-    //                 })
-    //             }
-    //         }, [readyState])
-
-    //         // Run when a new WebSocket message is received (lastJsonMessage)
-    //         useEffect(() => {
-    //             console.log(`Got a new message: ${lastJsonMessage}`)
-    //         }, [lastJsonMessage])
-
-    //         return <Chat lastJsonMessage={lastJsonMessage} />
-    //     }
 
 
     useEffect(() => {
-        const storedToken = localStorage.getItem('accessToken');
+        const storedToken = localStorage.getItem('access');
+        console.log(storedToken)
 
         if (storedToken) {
             setHasAccessToken(true)
             console.log("found token in local storage")
+            dispatch(get_user_pic())
+
+            const url = process.env.REACT_APP_URL+'/account/details/';
+            axios.get(url, {
+                headers: {
+                    Authorization: `Bearer ${storedToken}`
+                }
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        setFirst(response.data.first_name)
+                        setLast(response.data.last_name)
+                        setAbout(response.data.about)
+                        const email = response.data.email
+                        const pic = response.data.profile_img
+                        dispatch(save_details({email,pic}))
+                    }
+                    else {
+                        console.log('else')
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                });
         } else {
             setHasAccessToken(false)
             dispatch(ask_email())
         }
     }, [])
 
+
+
+
+
     return (
-        <div class="container text-center">
-            <div class="row">
-                <div class="col-4 bg-success p-2 text-dark bg-opacity-50">
-                    {/* if new user then signup and login option */}
+        <div className="text-center" style={{overflow:'hidden',height:'100vh'}}>
+            <div className="row me-0" style={{height:'100%'}}>
+                <div className="col-4 bg-success text-dark bg-opacity-50 pe-0" style={{height:'100%'}}>
+                    {/* {
+                        lenContacts === Roomname.length && Roomname.map((room) => {
+                            return <ComponentWS room={room} />
+                        })
+                    } */}
 
-                    {/* <div className='d-flex justify-content-center align-items-center'>
-                        <div className='d-flex flex-column bg-danger-subtle p-2 rounded-2'>
-                            <p className='m-0 p-0'>Help us to know you by  ---</p>
-                            <div className='my-1'>
-                                <button type="button" class="btn btn-success mx-2">Signup</button>
-                                <button type="button" class="btn btn-info">Login</button>
-                            </div>
-                        </div>
-
-                    </div> */}
-                    {/* <Signup /> */}
-                    {/* else */}
-                    {/* <Box1 users={users}/>
-                    <Box1 users={users}/> */}
+                    <Leftpart hasAccessToken={hasAccessToken} logout={props.logout} handle_femail={handle_setFmail} />
                 </div>
-                <div class="col-8 py-2 chatting_layout d-flex flex-column">
-                    {hasAccessToken ? (<Chatting users={users} />) : (
-                        // <Chatting users={users} />
-                        <Chatting users={admin} />
-                    )}
+
+                <div className="col-8 px-2 py-2 chatting_layout d-flex flex-column">
+                    {profilePic.me ===true && hasAccessToken && <MyProfile name={first +' '+last} about={about} />}
+                    {profilePic.me ===false && fmail && hasAccessToken && <MyProfile fmail={fmail} /> }
+                    {profilePic.me ==='' && profilePic.dp==='' && hasAccessToken && <Chatting />}
+                    {/* {showProfile === false && hasAccessToken && viewChatsComponent && <Chatting users={users} />} */}
+                    { hasAccessToken === false  && <Chatting />}
+                    
                 </div>
             </div>
         </div>

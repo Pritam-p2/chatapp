@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 import uuid
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class AccountManager(BaseUserManager):
     def create_user(self,email,first_name,last_name,password):
@@ -46,8 +48,34 @@ class Account(AbstractBaseUser,PermissionsMixin):
 
     objects = AccountManager()
 
-    def save(self, *args, **kwargs):
-        if self.image and self.image.name != self.email:
-            self.image.name = f'{self.email}'
 
-        super().save(*args, **kwargs)
+class LastSeen(models.Model):
+    last_seen = models.DateTimeField(null=True,blank = True)   
+    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING)
+    class Meta:
+        unique_together = ('last_seen', 'account')
+        
+@receiver(post_save, sender=Account)
+def your_model_post_save(sender, instance, **kwargs):
+    # Your custom logic or tasks to be performed after save
+    LastSeen.objects.create(account = instance)
+
+class Contact(models.Model):
+    friend = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name='friend')  
+    me = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name='me')
+    name = models.CharField(max_length=255,null = True, blank=True)
+    class Meta:
+        unique_together = ('friend', 'me')
+
+    def save(self, *args, **kwargs):
+        if self.friend == self.me:
+            return ValueError("This is not possible")
+        super(Contact, self).save(*args, **kwargs)        
+
+class Message(models.Model):
+    sender = models.EmailField(null=False,blank=False, default='')   # sender email
+    receiver = models.EmailField(null=False,blank=False,default='')
+    message = models.CharField(max_length = 255, null=False, blank=False,default='')   
+    last_seen = models.DateTimeField(null=True,blank = True,default=timezone.now)
+    room_name = models.CharField(max_length=255,null=False,blank=False,default='')
+ 
