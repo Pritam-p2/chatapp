@@ -7,6 +7,7 @@ from asgiref.sync import sync_to_async
 import jwt
 from django.conf import settings
 from channels.db import database_sync_to_async
+from django.db.models import Q
 
 
 
@@ -89,6 +90,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @sync_to_async
     def save_msg(self,email,receiver,message):
+        try:
+            c=Contact.objects.filter(me=email,friend=receiver)[0]
+        except:
+            a=Account.objects.get(email=email)
+            r=Account.objects.get(email=receiver)
+            Contact.objects.create(me=a,friend=r)    
         msg = Message.objects.create(sender=email,message=message,receiver = receiver,last_seen=timezone.now(),room_name=self.room_group_name)
         msg.save()
 
@@ -115,32 +122,40 @@ class BackendConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_messages_from_db(self):
-        msg = Message.objects.filter(receiver=self.room_group_name+"@gmail.com")
+        account_emails=Account.objects.values('email')
+        my_a_obj_email = ''
+        for items in account_emails:
+            if self.room_group_name == items.get('email')[0:int(items.get('email').index('@'))]:
+                my_a_obj_email=items.get('email')
+                break     
+        msg = Message.objects.filter(Q(sender=my_a_obj_email) | Q(receiver=my_a_obj_email))
         if(len(msg)==0):
             return ''
-        my_obj = Account.objects.get(email=self.room_group_name+"@gmail.com")
+        my_obj = Account.objects.get(email=my_a_obj_email)
         buffer_email=''
         datas = []
         for value in reversed(msg):
-            if buffer_email != value.sender:
-                buffer_email = value.sender
-                friend_obj = Account.objects.get(email=buffer_email)
-                print(friend_obj.email)
-                try:
-                    c = Contact.objects.filter(me=my_obj,friend=friend_obj)[0]
-                except:    
-                    c=Contact.objects.filter(me=friend_obj,friend=my_obj)[0]
-                name = ''
-                if c.name:
-                    name = c.name
-                else:
-                    name = friend_obj.first_name + ' '+ friend_obj.last_name
-                pic = ''    
-                if(friend_obj.image):
-                    pic = friend_obj.image.url
-                    datas.append({"sender":value.sender,"msg":value.message,'time':str(value.last_seen),"profile":pic,"name":name})    
-                else:
-                    datas.append({"sender":value.sender,"msg":value.message,'time':str(value.last_seen),"name":name})      
+            if value.sender != my_a_obj_email:
+                if buffer_email != value.sender:
+                    buffer_email = value.sender
+            elif value.receiver != my_a_obj_email:
+                if buffer_email != value.receiver:
+                    buffer_email = value.receiver
+
+            friend_obj = Account.objects.get(email=buffer_email)
+            name = ''
+            
+            c = Contact.objects.filter(me=my_obj,friend=friend_obj).first()
+            if c.name:
+                name = c.name
+            else:    
+                name = friend_obj.first_name + ' '+ friend_obj.last_name
+            pic = ''    
+            if(friend_obj.image):
+                pic = friend_obj.image.url
+                datas.append({"sender":buffer_email,"msg":value.message,'time':str(value.last_seen),"profile":pic,"name":name})    
+            else:
+                datas.append({"sender":buffer_email,"msg":value.message,'time':str(value.last_seen),"name":name})  
         return {"senders_msgs":datas}    
         
     async def send_chats(self):
