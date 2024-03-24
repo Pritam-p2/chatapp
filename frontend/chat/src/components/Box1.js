@@ -88,7 +88,7 @@ const Box1 = ({ userPart, handleFemail }) => {
     }
 
     return (
-        <div className='pb-2' style={{overflow:"scroll"}}>
+        <div className='my-2' style={{overflow:"scroll",height:'86%'}}>
             {
                 allUsers &&
                 allUsers.map((user, index) => {
